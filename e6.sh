@@ -16,7 +16,7 @@ args=("$@")
 
 # output help if user asks for it, or if user provides no arguments
 if [ $# = 0 ] || [ $1 = "--help" ] ; then
-  echo "e6.sh"
+  echo "e6.sh v2.0"
   echo ""
   echo "Usage: ./e6.sh [OPTION]... [DIRECTORY]..."
   echo "Downlods files into specified directories, relative to the script location."
@@ -56,7 +56,7 @@ if [ $# = 0 ] || [ $1 = "--help" ] ; then
   echo "Shoutout to /u/BASH_SCRIPTS_FOR_YOU for the original script. Sadly it stopped working when e621 changed the JSON on their post pages. This hopefully improved version builds on the functionality and utilises e621's XML API, so it should be slightly faster to
 generate links."
   echo "Happy Yiffing!"
-  echo "Updated: 21/12/15"
+  echo "Updated: 27/12/15"
   exit
 fi
 
