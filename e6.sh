@@ -26,6 +26,7 @@ if [ $# = 0 ] || [ $1 = "--help" ] ; then
   echo "-d  =  duplicate     will not check every directory for a file before downloading it"
   echo "-c  =  continue      will attempt to use an existing list of links to resume donwloading, if it fails, it falls back to normal"
   echo "-t  =  tag           prompts for tags, even if a tag file exists"
+  echo "-q  =  quiet         only outputs for downloaded images and errors, quits if input is required"
   echo "--help               shows this text"
   echo ""
   echo "Examples:"
@@ -80,16 +81,22 @@ if [ $(echo "$1" | grep -ce '^-\w*t') -ge 1 ] ; then
   flags_t=true
 fi
 
+if [ $(echo "$1" | grep -ce '^-\w*q') -ge 1 ] ; then
+  flags_q=true
+fi
+
 # get array of directories to loop through
 if [ "$flags_a" = true ] ; then
-  dir_array=($(find ./* -not -path '*/\.*' -type d))
+
+  for d in */ ; do
+    dir_array+=("$d")
+  done
+
   if [ ${#dir_array[@]} = 0 ] ; then
     echo "-a flag specified, but no directories found. Use --help for help."
     exit
   fi
 else
-
-  dir_array=()
 
   for arg in "$@"; do
     if [ $(echo "$arg" | grep -ce '^-') = 0 ] ; then
@@ -111,9 +118,9 @@ else
 
 fi
 
-# create our tag files within each directory, if they don't exist, or if -t is specified
+# create our tag files within each directory, if (they don't exist, or if -t is specified) and -q is not
 for dir in "${dir_array[@]}"; do
-  if [ ! -f "$dir/tags" ] || [ "$flags_t" = true ] ; then
+  if [[ ! -f "$dir/tags" || "$flags_t" = true ]] && [ -z "$flags_q" ] ; then
     echo "Please enter your tag string for directory: $dir"
     read tags
     if [ -z "$tags" ] ; then
@@ -130,7 +137,9 @@ for dir in "${dir_array[@]}"; do
     if [ -z "$flags_c" ] || [[ "$flags_c" = true && ! -f "$dir/links" ]] ; then
 
       tags=`cat $dir/tags`
-      echo "Creating link file for $dir. Calculating pages..."
+      if [ -z "$flags_q" ] ; then
+        echo "Creating link file for $dir. Calculating pages..."
+      fi
       files=`curl --retry 8 -s -g "${API}limit=1&page=0&tags=$tags" | grep -oP 'posts count="\d+"' | grep -oP '\d+'`
       pages=$(((files + (LIMIT - 1)) / LIMIT))
 
@@ -146,19 +155,25 @@ for dir in "${dir_array[@]}"; do
         plural_file="files"
       fi
 
-      echo "$files $plural_file over $pages $plural_page at $LIMIT files per page."
+      if [ -z "$flags_q" ] ; then
+        echo "$files $plural_file over $pages $plural_page at $LIMIT files per page."
+      fi
 
       page=0
       cp /dev/null "$dir/links"
 
       while [ "$page" != "$pages" ]
         do page=$(( ${page} + 1 ))
-        echo "Page $page of $pages."
+        if [ -z "$flags_q" ] ; then
+          echo "Page $page of $pages."
+        fi
         # This kinda sucks, but it's the best I got. Grabs source, strips out file_url text, then strips out only the link, then splits spaces to newlines, then writes to file.
         echo $(curl -s -g "${API}limit=$LIMIT&page=$page&tags=$tags" | grep -oP 'file_url=".*?"' | grep -oe 'http.*[^"]') | tr " " "\n" >> "$dir/links"
       done
     else
-      echo "Link file exists for $dir. Skipping."
+      if [ -z "$flags_q" ] ; then
+        echo "Link file exists for $dir. Skipping."
+      fi
     fi
   fi
 done
@@ -166,7 +181,9 @@ done
 # download files
 for dir in "${dir_array[@]}"; do
   if [ -f "$dir/links" ] ; then
-    echo "Downloading files for $dir"
+    if [ -z "$flags_q" ] ; then
+      echo "Downloading files for $dir"
+    fi
     linenumber=0
     lines=`cat $dir/links | wc -l`
     while [ "${lines}" != "${linenumber}" ] ; do
@@ -176,24 +193,33 @@ for dir in "${dir_array[@]}"; do
       file=$(echo $link | grep -o '[^\/]*$')
       if [ "$flags_d" = true ] ; then
         if [ -f "$dir/$file" ] ; then
-          echo "File $file found, skipping."
+          if [ -z "$flags_q" ] ; then
+            echo "File $file found, skipping."
+          fi
           skip=true
         fi
       else
       for subdir in "${dir_array[@]}"; do
           if [ -f "$subdir/$file" ] ; then
-            echo "File $file found in $subdir using global search. Skipping"
+            if [ -z "$flags_q" ] ; then
+              echo "File $file found in $subdir using global search. Skipping"
+            fi
             skip=true
             break
           fi
         done
       fi
       if [ "$skip" = false ] ; then
-        echo "Downloading file $linenumber of $lines."
-        curl -# $link > $dir/$file
+        if [ -z "$flags_q" ] ; then
+          echo "Downloading file $linenumber of $lines."
+          curl -# $link > $dir/$file
+        else
+          echo "Downloaded file $file to $dir"
+          curl -s $link > $dir/$file
+        fi
       fi
     done
   fi
 done
-echo "Job's done!"
+echo "Script completed successfully - $(date)"
 exit
