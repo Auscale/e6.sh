@@ -12,11 +12,13 @@
 #   File size
 #   Rating
 
+echo "Script initiated - $(date)"
+
 args=("$@")
 
 # output help if user asks for it, or if user provides no arguments
 if [ $# = 0 ] || [ $1 = "--help" ] ; then
-  echo "e6.sh v2.0"
+  echo "e6.sh"
   echo ""
   echo "Usage: ./e6.sh [OPTION]... [DIRECTORY]..."
   echo "Downlods files into specified directories, relative to the script location."
@@ -56,7 +58,7 @@ if [ $# = 0 ] || [ $1 = "--help" ] ; then
   echo "Shoutout to /u/BASH_SCRIPTS_FOR_YOU for the original script. Sadly it stopped working when e621 changed the JSON on their post pages. This hopefully improved version builds on the functionality and utilises e621's XML API, so it should be slightly faster to
 generate links."
   echo "Happy Yiffing!"
-  echo "Updated: 27/12/15"
+  echo "Updated: 07/02/16"
   exit
 fi
 
@@ -140,7 +142,7 @@ for dir in "${dir_array[@]}"; do
       if [ -z "$flags_q" ] ; then
         echo "Creating link file for $dir. Calculating pages..."
       fi
-      files=`curl --retry 8 -s -g "${API}limit=1&page=0&tags=$tags" | grep -oP 'posts count="\d+"' | grep -oP '\d+'`
+      files=`curl --retry 8 -s -g "${API}limit=1&page=0&tags=${tags// /%20}" | grep -oP 'posts count="\d+"' | grep -oP '\d+'`
       pages=$(((files + (LIMIT - 1)) / LIMIT))
 
       if [ "$pages" = 1 ] ; then
@@ -160,7 +162,7 @@ for dir in "${dir_array[@]}"; do
       fi
 
       page=0
-      cp /dev/null "$dir/links"
+      cp /dev/null "${dir}/links"
 
       while [ "$page" != "$pages" ]
         do page=$(( ${page} + 1 ))
@@ -168,7 +170,7 @@ for dir in "${dir_array[@]}"; do
           echo "Page $page of $pages."
         fi
         # This kinda sucks, but it's the best I got. Grabs source, strips out file_url text, then strips out only the link, then splits spaces to newlines, then writes to file.
-        echo $(curl -s -g "${API}limit=$LIMIT&page=$page&tags=$tags" | grep -oP 'file_url=".*?"' | grep -oe 'http.*[^"]') | tr " " "\n" >> "$dir/links"
+        echo $(curl -s -g "${API}limit=${LIMIT}&page=${page}&tags=${tags// /%20}" | grep -oP 'file_url>.*?<' | grep -oe 'http.*[^<]') | tr " " "\n" >> "${dir}/links"
       done
     else
       if [ -z "$flags_q" ] ; then
@@ -212,10 +214,13 @@ for dir in "${dir_array[@]}"; do
       if [ "$skip" = false ] ; then
         if [ -z "$flags_q" ] ; then
           echo "Downloading file $linenumber of $lines."
-          curl -# $link > $dir/$file
+          echo "DEBUG - link is ${link}"
+          echo "DEBUG - dir is ${dir}"
+          echo "DEBUG - file is ${file}"
+          curl -# ${link} > ${dir}/${file}
         else
           echo "Downloaded file $file to $dir"
-          curl -s $link > $dir/$file
+          curl -s ${link} > ${dir}/${file}
         fi
       fi
     done
