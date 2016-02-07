@@ -214,9 +214,6 @@ for dir in "${dir_array[@]}"; do
       if [ "$skip" = false ] ; then
         if [ -z "$flags_q" ] ; then
           echo "Downloading file $linenumber of $lines."
-          echo "DEBUG - link is ${link}"
-          echo "DEBUG - dir is ${dir}"
-          echo "DEBUG - file is ${file}"
           curl -# ${link} > ${dir}/${file}
         else
           echo "Downloaded file $file to $dir"
